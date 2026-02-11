@@ -89,23 +89,6 @@
             cursor: not-allowed;
             transform: none;
         }
-
-        #loadingIndicator {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.8);
-            color: #4CAF50;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 14px;
-            display: none;
-            z-index: 1000;
-        }
-
-        #loadingIndicator.show {
-            display: block;
-        }
     </style>
 </head>
 <body>
@@ -117,7 +100,6 @@
         </div>
         <button id="saveButton" onclick="saveAsImage()">💾 Save as Image</button>
     </div>
-    <div id="loadingIndicator">⏳ Loading character...</div>
 
     <script>
         // EXACT DIMENSIONS WITH MARGINS
@@ -150,8 +132,8 @@
 
         // Character-specific baseline offsets (positive = lower, negative = higher)
         const BASELINE_OFFSETS = {
-            '(': 15,
-            ')': 15,
+			'(': 15,
+			')': 15,
             'Q': 15,
             'g': 18,
             'p': 18,
@@ -168,6 +150,7 @@
             'openquote': -29,
             'closequote': -29,
             "'": -28,
+            // Ligatures (add as needed)
             'fi': 0,
             'fl': 0,
             'ff': 0
@@ -175,84 +158,85 @@
 
         // Character database with punctuation, quotes, and ligatures
         const charDatabase = {
-            '0': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: '0.png' },
-            '1': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: '1.png' },
-            '2': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: '2.png' },
-            '3': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: '3.png' },
-            '4': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: '4.png' },
-            '5': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: '5.png' },
-            '6': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: '6.png' },
-            '7': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: '7.png' },
-            '8': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: '8.png' },
-            '9': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: '9.png' },
-            'A': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'A1.png' },
-            'B': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'B1.png' },
-            'C': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'C1.png' },
-            'D': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'D1.png' },
-            'E': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'E1.png' },
-            'F': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'F1.png' },
-            'G': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'G1.png' },
-            'H': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'H1.png' },
-            'I': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'I1.png' },
-            'J': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'J1.png' },
-            'K': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'K1.png' },
-            'L': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'L1.png' },
-            'M': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'M1.png' },
-            'N': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'N1.png' },
-            'O': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'O1.png' },
-            'P': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'P1.png' },
-            'Q': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'Q1.png' },
-            'R': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'R1.png' },
-            'S': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'S1.png' },
-            'T': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'T1.png' },
-            'U': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'U1.png' },
-            'V': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'V1.png' },
-            'W': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'W1.png' },
-            'X': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'X1.png' },
-            'Y': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'Y1.png' },
-            'Z': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'Z1.png' },
-            'a': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'a2.png' },
-            'b': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'b2.png' },
-            'c': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'c2.png' },
-            'd': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'd2.png' },
-            'e': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'e2.png' },
-            'f': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'f2.png' },
-            'g': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'g2.png' },
-            'h': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'h2.png' },
-            'i': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'i2.png' },
-            'j': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'j2.png' },
-            'k': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'k2.png' },
-            'l': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'l2.png' },
-            'm': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'm2.png' },
-            'n': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'n2.png' },
-            'o': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'o2.png' },
-            'p': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'p2.png' },
-            'q': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'q2.png' },
-            'r': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'r2.png' },
-            's': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 's2.png' },
-            't': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 't2.png' },
-            'u': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'u2.png' },
-            'v': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'v2.png' },
-            'w': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'w2.png' },
-            'x': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'x2.png' },
-            'y': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'y2.png' },
-            'z': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'z2.png' },
-            ',': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'comma.png' },
-            '.': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'period.png' },
-            ':': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'colon.png' },
-            ';': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'semicolon.png' },
-            '!': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'exclamation.png' },
-            '?': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'question.png' },
-            '-': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'hyphen.png' },
-            '(': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'openparenthesis.png' },
-            ')': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'closeparenthesis.png' },
-            'openquote': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'openquote.png' },
-            'closequote': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'closequote.png' },
-            "'": { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'apostrophe.png' },
-            'fi': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'fi.png' },
-            'fl': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'fl.png' },
-            'ff': { variants: [], rareVariants: [], loaded: false, loading: false, baseFile: 'ff.png' },
-            ' ': { variants: [], rareVariants: [], loaded: true, loading: false, baseFile: null }
+            '0': { variants: [], rareVariants: [], loaded: false, baseFile: '0.png' },
+            '1': { variants: [], rareVariants: [], loaded: false, baseFile: '1.png' },
+            '2': { variants: [], rareVariants: [], loaded: false, baseFile: '2.png' },
+            '3': { variants: [], rareVariants: [], loaded: false, baseFile: '3.png' },
+            '4': { variants: [], rareVariants: [], loaded: false, baseFile: '4.png' },
+            '5': { variants: [], rareVariants: [], loaded: false, baseFile: '5.png' },
+            '6': { variants: [], rareVariants: [], loaded: false, baseFile: '6.png' },
+            '7': { variants: [], rareVariants: [], loaded: false, baseFile: '7.png' },
+            '8': { variants: [], rareVariants: [], loaded: false, baseFile: '8.png' },
+            '9': { variants: [], rareVariants: [], loaded: false, baseFile: '9.png' },
+            'A': { variants: [], rareVariants: [], loaded: false, baseFile: 'A1.png' },
+            'B': { variants: [], rareVariants: [], loaded: false, baseFile: 'B1.png' },
+            'C': { variants: [], rareVariants: [], loaded: false, baseFile: 'C1.png' },
+            'D': { variants: [], rareVariants: [], loaded: false, baseFile: 'D1.png' },
+            'E': { variants: [], rareVariants: [], loaded: false, baseFile: 'E1.png' },
+            'F': { variants: [], rareVariants: [], loaded: false, baseFile: 'F1.png' },
+            'G': { variants: [], rareVariants: [], loaded: false, baseFile: 'G1.png' },
+            'H': { variants: [], rareVariants: [], loaded: false, baseFile: 'H1.png' },
+            'I': { variants: [], rareVariants: [], loaded: false, baseFile: 'I1.png' },
+            'J': { variants: [], rareVariants: [], loaded: false, baseFile: 'J1.png' },
+            'K': { variants: [], rareVariants: [], loaded: false, baseFile: 'K1.png' },
+            'L': { variants: [], rareVariants: [], loaded: false, baseFile: 'L1.png' },
+            'M': { variants: [], rareVariants: [], loaded: false, baseFile: 'M1.png' },
+            'N': { variants: [], rareVariants: [], loaded: false, baseFile: 'N1.png' },
+            'O': { variants: [], rareVariants: [], loaded: false, baseFile: 'O1.png' },
+            'P': { variants: [], rareVariants: [], loaded: false, baseFile: 'P1.png' },
+            'Q': { variants: [], rareVariants: [], loaded: false, baseFile: 'Q1.png' },
+            'R': { variants: [], rareVariants: [], loaded: false, baseFile: 'R1.png' },
+            'S': { variants: [], rareVariants: [], loaded: false, baseFile: 'S1.png' },
+            'T': { variants: [], rareVariants: [], loaded: false, baseFile: 'T1.png' },
+            'U': { variants: [], rareVariants: [], loaded: false, baseFile: 'U1.png' },
+            'V': { variants: [], rareVariants: [], loaded: false, baseFile: 'V1.png' },
+            'W': { variants: [], rareVariants: [], loaded: false, baseFile: 'W1.png' },
+            'X': { variants: [], rareVariants: [], loaded: false, baseFile: 'X1.png' },
+            'Y': { variants: [], rareVariants: [], loaded: false, baseFile: 'Y1.png' },
+            'Z': { variants: [], rareVariants: [], loaded: false, baseFile: 'Z1.png' },
+            'a': { variants: [], rareVariants: [], loaded: false, baseFile: 'a2.png' },
+            'b': { variants: [], rareVariants: [], loaded: false, baseFile: 'b2.png' },
+            'c': { variants: [], rareVariants: [], loaded: false, baseFile: 'c2.png' },
+            'd': { variants: [], rareVariants: [], loaded: false, baseFile: 'd2.png' },
+            'e': { variants: [], rareVariants: [], loaded: false, baseFile: 'e2.png' },
+            'f': { variants: [], rareVariants: [], loaded: false, baseFile: 'f2.png' },
+            'g': { variants: [], rareVariants: [], loaded: false, baseFile: 'g2.png' },
+            'h': { variants: [], rareVariants: [], loaded: false, baseFile: 'h2.png' },
+            'i': { variants: [], rareVariants: [], loaded: false, baseFile: 'i2.png' },
+            'j': { variants: [], rareVariants: [], loaded: false, baseFile: 'j2.png' },
+            'k': { variants: [], rareVariants: [], loaded: false, baseFile: 'k2.png' },
+            'l': { variants: [], rareVariants: [], loaded: false, baseFile: 'l2.png' },
+            'm': { variants: [], rareVariants: [], loaded: false, baseFile: 'm2.png' },
+            'n': { variants: [], rareVariants: [], loaded: false, baseFile: 'n2.png' },
+            'o': { variants: [], rareVariants: [], loaded: false, baseFile: 'o2.png' },
+            'p': { variants: [], rareVariants: [], loaded: false, baseFile: 'p2.png' },
+            'q': { variants: [], rareVariants: [], loaded: false, baseFile: 'q2.png' },
+            'r': { variants: [], rareVariants: [], loaded: false, baseFile: 'r2.png' },
+            's': { variants: [], rareVariants: [], loaded: false, baseFile: 's2.png' },
+            't': { variants: [], rareVariants: [], loaded: false, baseFile: 't2.png' },
+            'u': { variants: [], rareVariants: [], loaded: false, baseFile: 'u2.png' },
+            'v': { variants: [], rareVariants: [], loaded: false, baseFile: 'v2.png' },
+            'w': { variants: [], rareVariants: [], loaded: false, baseFile: 'w2.png' },
+            'x': { variants: [], rareVariants: [], loaded: false, baseFile: 'x2.png' },
+            'y': { variants: [], rareVariants: [], loaded: false, baseFile: 'y2.png' },
+            'z': { variants: [], rareVariants: [], loaded: false, baseFile: 'z2.png' },
+            ',': { variants: [], rareVariants: [], loaded: false, baseFile: 'comma.png' },
+            '.': { variants: [], rareVariants: [], loaded: false, baseFile: 'period.png' },
+            ':': { variants: [], rareVariants: [], loaded: false, baseFile: 'colon.png' },
+            ';': { variants: [], rareVariants: [], loaded: false, baseFile: 'semicolon.png' },
+            '!': { variants: [], rareVariants: [], loaded: false, baseFile: 'exclamation.png' },
+            '?': { variants: [], rareVariants: [], loaded: false, baseFile: 'question.png' },
+            '-': { variants: [], rareVariants: [], loaded: false, baseFile: 'hyphen.png' },
+            '(': { variants: [], rareVariants: [], loaded: false, baseFile: 'openparenthesis.png' },
+            ')': { variants: [], rareVariants: [], loaded: false, baseFile: 'closeparenthesis.png' },
+            'openquote': { variants: [], rareVariants: [], loaded: false, baseFile: 'openquote.png' },
+            'closequote': { variants: [], rareVariants: [], loaded: false, baseFile: 'closequote.png' },
+            "'": { variants: [], rareVariants: [], loaded: false, baseFile: 'apostrophe.png' },
+            // Ligatures
+            'fi': { variants: [], rareVariants: [], loaded: false, baseFile: 'fi.png' },
+            'fl': { variants: [], rareVariants: [], loaded: false, baseFile: 'fl.png' },
+            'ff': { variants: [], rareVariants: [], loaded: false, baseFile: 'ff.png' },
+            ' ': { variants: [], rareVariants: [], loaded: true, baseFile: null }
         };
 
         // Editor state
@@ -321,18 +305,20 @@
             quoteIsOpen = openCount > closeCount;
         }
 
+        // Check if previous char + current char form a ligature
         function checkForLigature(char) {
             if (cursorIndex === 0) return null;
 
             const prevChar = characters[cursorIndex - 1];
             if (!prevChar || !prevChar.char) return null;
 
+            // Check if previous was a newline or space
             if (prevChar.char === '\n' || prevChar.char === ' ') return null;
 
             const combination = prevChar.char + char;
             const ligatureName = LIGATURES[combination];
 
-            if (ligatureName && charDatabase[ligatureName]) {
+            if (ligatureName && charDatabase[ligatureName] && charDatabase[ligatureName].loaded) {
                 console.log('Ligature detected:', combination, '→', ligatureName);
                 return ligatureName;
             }
@@ -340,20 +326,15 @@
             return null;
         }
 
-        // LAZY LOADING: Load character on-demand
-        async function loadCharacterWithAlts(char) {
+        function loadCharacterWithAlts(char) {
             const charData = charDatabase[char];
             if (!charData || !charData.baseFile) return;
-            if (charData.loaded || charData.loading) return; // Already loaded or loading
-
-            charData.loading = true;
-            showLoadingIndicator();
 
             const baseName = charData.baseFile.replace('.png', '');
             const promises = [];
 
             const baseImg = new Image();
-            const basePromise = new Promise((resolve) => {
+            const basePromise = new Promise((resolve, reject) => {
                 baseImg.onload = () => {
                     charData.variants.push({
                         image: baseImg,
@@ -408,21 +389,11 @@
             });
             promises.push(rarePromise);
 
-            await Promise.all(promises);
-            charData.loaded = charData.variants.length > 0;
-            charData.loading = false;
-            hideLoadingIndicator();
+            return Promise.all(promises).then(() => {
+                charData.loaded = charData.variants.length > 0;
+            });
         }
 
-        function showLoadingIndicator() {
-            document.getElementById('loadingIndicator').classList.add('show');
-        }
-
-        function hideLoadingIndicator() {
-            document.getElementById('loadingIndicator').classList.remove('show');
-        }
-
-        // INSTANT STARTUP: Only load paper image
         async function loadImages() {
             await new Promise((resolve) => {
                 paperImage.onload = () => resolve();
@@ -430,9 +401,14 @@
                 paperImage.src = 'blank1.jpg';
             });
 
+            const charKeys = Object.keys(charDatabase).filter(k => k !== ' ');
+            for (const char of charKeys) {
+                await loadCharacterWithAlts(char);
+            }
+
             setupCanvases();
             editorReady = true;
-            console.log('✅ Editor ready! Characters will load as you type.');
+            console.log('Editor ready!');
         }
 
         function setupCanvases() {
@@ -459,7 +435,7 @@
             return x + width > MAX_LINE_WIDTH;
         }
 
-        async function addCharacter(char) {
+        function addCharacter(char) {
             if (char === '\n') {
                 const lineHeight = nextLineHeight;
                 nextLineHeight = randomLineHeight();
@@ -487,12 +463,6 @@
 
             if (char === '"') {
                 const quoteType = quoteIsOpen ? 'closequote' : 'openquote';
-
-                // Load if not already loaded
-                if (!charDatabase[quoteType].loaded) {
-                    await loadCharacterWithAlts(quoteType);
-                }
-
                 const variant = randomVariant(quoteType);
 
                 if (!variant) {
@@ -540,17 +510,15 @@
                 return;
             }
 
+            // Check for ligature BEFORE adding regular character
             const ligatureName = checkForLigature(char);
 
             if (ligatureName) {
-                // Load ligature if not loaded
-                if (!charDatabase[ligatureName].loaded) {
-                    await loadCharacterWithAlts(ligatureName);
-                }
-
+                // Replace previous character with ligature
                 const variant = randomVariant(ligatureName);
                 if (!variant) return;
 
+                // Remove the previous character
                 characters.splice(cursorIndex - 1, 1);
                 cursorIndex--;
 
@@ -591,14 +559,8 @@
                 return;
             }
 
-            // Regular character - load if not loaded
-            if (charDatabase[char]) {
-                if (!charDatabase[char].loaded) {
-                    await loadCharacterWithAlts(char);
-                }
-
-                if (!charDatabase[char].loaded) return; // Failed to load
-
+            // Regular character
+            if (charDatabase[char] && charDatabase[char].loaded) {
                 const variant = randomVariant(char);
                 if (!variant) return;
 
@@ -831,20 +793,26 @@
             cursor.style.top = (currentBaseline - BASELINE_HEIGHT) + 'px';
         }
 
+        // SAVE AS IMAGE FUNCTION
         function saveAsImage() {
             const button = document.getElementById('saveButton');
             button.disabled = true;
             button.textContent = '⏳ Saving...';
 
             try {
+                // Create a temporary canvas to merge paper and text
                 const mergedCanvas = document.createElement('canvas');
                 mergedCanvas.width = PAPER_WIDTH;
                 mergedCanvas.height = PAPER_HEIGHT;
                 const mergedCtx = mergedCanvas.getContext('2d');
 
+                // Draw paper background
                 mergedCtx.drawImage(paperCanvas, 0, 0);
+
+                // Draw text on top
                 mergedCtx.drawImage(textCanvas, 0, 0);
 
+                // Convert to blob and download
                 mergedCanvas.toBlob((blob) => {
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
@@ -894,7 +862,9 @@
                 e.preventDefault();
                 addCharacter('"');
             } else if (e.key.length === 1) {
-                addCharacter(e.key);
+                if (charDatabase[e.key] && charDatabase[e.key].loaded) {
+                    addCharacter(e.key);
+                }
             }
         }
 
