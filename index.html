@@ -402,8 +402,7 @@
             });
 
             const charKeys = Object.keys(charDatabase).filter(k => k !== ' ');
-            for (const char of charKeys) {
-                await loadCharacterWithAlts(char);
+			await Promise.all(charKeys.map(char => loadCharacterWithAlts(char)));
             }
 
             setupCanvases();
