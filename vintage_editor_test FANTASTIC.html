@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vintage Typography Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #2a2a2a;
+            overflow: auto;
+        }
+
+        #editorWrapper {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        #editorContainer {
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            cursor: text;
+            background: #000;
+        }
+
+        #paperCanvas {
+            display: block;
+        }
+
+        #textCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        #cursor {
+            position: absolute;
+            width: 2px;
+            height: 60px;
+            background: rgba(0,0,0,0.6);
+            animation: blink 1s infinite;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="editorWrapper">
+        <div id="editorContainer">
+            <canvas id="paperCanvas"></canvas>
+            <canvas id="textCanvas"></canvas>
+            <div id="cursor"></div>
+        </div>
+    </div>
+
+    <script>
+        // EXACT DIMENSIONS WITH MARGINS
+        const PAPER_WIDTH = 2172;
+        const PAPER_HEIGHT = 3504;
+        const MIN_CHAR_SPACING = 1;
+        const MAX_CHAR_SPACING = 3;
+        const MIN_VERTICAL_OFFSET = 0;
+        const MAX_VERTICAL_OFFSET = 2;
+        const MIN_SPACE_WIDTH = 22;
+        const MAX_SPACE_WIDTH = 52;
+        const SPACE_JITTER = 2;
+        const MIN_LINE_HEIGHT = 80;
+        const MAX_LINE_HEIGHT = 100;
+        const BASELINE_HEIGHT = 60;
+        const MARGIN_LEFT = 300;
+        const MARGIN_RIGHT = 300;
+        const MARGIN_TOP = 450;
+        const MARGIN_BOTTOM = 450;
+        const MAX_LINE_WIDTH = PAPER_WIDTH - MARGIN_RIGHT;
+        const MAX_ALT_VARIANTS = 10; // Try to load up to alt1 through alt10
+
+        // Character database - now stores arrays of variants
+        const charDatabase = {
+            'A': { variants: [], loaded: false, baseFile: 'A1.png' },
+            'a': { variants: [], loaded: false, baseFile: 'a2.png' },
+            'b': { variants: [], loaded: false, baseFile: 'b2.png' },
+            'D': { variants: [], loaded: false, baseFile: 'D1.png' },
+            'd': { variants: [], loaded: false, baseFile: 'd2.png' },
+            ' ': { variants: [], loaded: true, baseFile: null }
+        };
+
+        // Editor state
+        let characters = [];
+        let currentX = MARGIN_LEFT;
+        let currentBaseline = MARGIN_TOP;
+        let currentLineSpaceWidth = MIN_SPACE_WIDTH + Math.random() * (MAX_SPACE_WIDTH - MIN_SPACE_WIDTH);
+        let loadingComplete = false;
+        let loadedImagesCount = 0;
+
+        // Canvas references
+        let paperCanvas, textCanvas, paperCtx, textCtx;
+        let paperImage = new Image();
+        let editorReady = false;
+
+        // Random helper functions
+        function randomSpacing() {
+            return MIN_CHAR_SPACING + Math.random() * (MAX_CHAR_SPACING - MIN_CHAR_SPACING);
+        }
+
+        function randomVerticalOffset() {
+            return MIN_VERTICAL_OFFSET + Math.random() * (MAX_VERTICAL_OFFSET - MIN_VERTICAL_OFFSET);
+        }
+
+        function randomSpaceWidthForLine() {
+            return MIN_SPACE_WIDTH + Math.random() * (MAX_SPACE_WIDTH - MIN_SPACE_WIDTH);
+        }
+
+        function applySpaceJitter(baseWidth) {
+            return baseWidth + (Math.random() * SPACE_JITTER * 2 - SPACE_JITTER);
+        }
+
+        function randomLineHeight() {
+            return MIN_LINE_HEIGHT + Math.random() * (MAX_LINE_HEIGHT - MIN_LINE_HEIGHT);
+        }
+
+        function randomVariant(char) {
+            const charData = charDatabase[char];
+            if (!charData || charData.variants.length === 0) return null;
+            const randomIndex = Math.floor(Math.random() * charData.variants.length);
+            return charData.variants[randomIndex];
+        }
+
+        // Load character with alternatives
+        function loadCharacterWithAlts(char) {
+            const charData = charDatabase[char];
+            if (!charData || !charData.baseFile) return;
+
+            const baseName = charData.baseFile.replace('.png', '');
+            const promises = [];
+
+            // Load base version
+            const baseImg = new Image();
+            const basePromise = new Promise((resolve, reject) => {
+                baseImg.onload = () => {
+                    charData.variants.push({
+                        image: baseImg,
+                        width: baseImg.naturalWidth,
+                        height: baseImg.naturalHeight
+                    });
+                    console.log('Loaded ' + char + ' base:', baseImg.naturalWidth + 'x' + baseImg.naturalHeight);
+                    resolve();
+                };
+                baseImg.onerror = () => {
+                    console.warn('Could not load base:', charData.baseFile);
+                    reject();
+                };
+                baseImg.src = charData.baseFile;
+            });
+            promises.push(basePromise);
+
+            // Try to load alt variants
+            for (let i = 1; i <= MAX_ALT_VARIANTS; i++) {
+                const altFilename = baseName + '_alt' + i + '.png';
+                const altImg = new Image();
+
+                const altPromise = new Promise((resolve, reject) => {
+                    altImg.onload = () => {
+                        charData.variants.push({
+                            image: altImg,
+                            width: altImg.naturalWidth,
+                            height: altImg.naturalHeight
+                        });
+                        console.log('Loaded ' + char + ' alt' + i + ':', altImg.naturalWidth + 'x' + altImg.naturalHeight);
+                        resolve();
+                    };
+                    altImg.onerror = () => {
+                        // Silent fail for alts - they're optional
+                        resolve();
+                    };
+                    altImg.src = altFilename;
+                });
+                promises.push(altPromise);
+            }
+
+            return Promise.all(promises).then(() => {
+                charData.loaded = charData.variants.length > 0;
+                loadedImagesCount++;
+            });
+        }
+
+        // Load images
+        async function loadImages() {
+            // Load paper first
+            await new Promise((resolve, reject) => {
+                paperImage.onload = () => {
+                    console.log('Paper loaded:', paperImage.width, 'x', paperImage.height);
+                    resolve();
+                };
+                paperImage.onerror = () => {
+                    console.error('Error loading blank.jpg');
+                    reject();
+                };
+                paperImage.src = 'blank.jpg';
+            });
+
+            // Load all characters with their alts
+            const charKeys = Object.keys(charDatabase).filter(k => k !== ' ');
+            for (const char of charKeys) {
+                await loadCharacterWithAlts(char);
+            }
+
+            loadingComplete = true;
+            setupCanvases();
+            editorReady = true;
+
+            // Summary
+            console.log('\n=== LOADED CHARACTERS ===');
+            for (const char of charKeys) {
+                const data = charDatabase[char];
+                if (data.loaded) {
+                    console.log(char + ': ' + data.variants.length + ' variant(s)');
+                }
+            }
+            console.log('Editor ready!');
+        }
+
+        function setupCanvases() {
+            paperCanvas = document.getElementById('paperCanvas');
+            textCanvas = document.getElementById('textCanvas');
+
+            paperCanvas.width = PAPER_WIDTH;
+            paperCanvas.height = PAPER_HEIGHT;
+            textCanvas.width = PAPER_WIDTH;
+            textCanvas.height = PAPER_HEIGHT;
+
+            paperCtx = paperCanvas.getContext('2d');
+            textCtx = textCanvas.getContext('2d');
+
+            textCtx.imageSmoothingEnabled = false;
+            paperCtx.imageSmoothingEnabled = false;
+
+            paperCtx.drawImage(paperImage, 0, 0, PAPER_WIDTH, PAPER_HEIGHT);
+
+            updateCursor();
+        }
+
+        function addCharacter(char) {
+            // Handle newline
+            if (char === '\n') {
+                const lineHeight = randomLineHeight();
+                characters.push({ 
+                    char: '\n',
+                    lineHeight: lineHeight
+                });
+                currentX = MARGIN_LEFT;
+                currentBaseline += lineHeight;
+                currentLineSpaceWidth = randomSpaceWidthForLine();
+                return;
+            }
+
+            // Handle space
+            if (char === ' ') {
+                const spaceWidth = applySpaceJitter(currentLineSpaceWidth);
+                characters.push({ 
+                    char: ' ', 
+                    x: currentX, 
+                    width: spaceWidth 
+                });
+                currentX += spaceWidth;
+                return;
+            }
+
+            // Handle regular character
+            if (charDatabase[char] && charDatabase[char].loaded) {
+                const variant = randomVariant(char);
+                if (!variant) return;
+
+                // Check if we need to wrap to next line
+                if (currentX + variant.width > MAX_LINE_WIDTH) {
+                    const lineHeight = randomLineHeight();
+                    characters.push({ 
+                        char: '\n',
+                        lineHeight: lineHeight,
+                        autoWrap: true
+                    });
+                    currentX = MARGIN_LEFT;
+                    currentBaseline += lineHeight;
+                    currentLineSpaceWidth = randomSpaceWidthForLine();
+                }
+
+                // Calculate position with jitter ONCE when typed
+                const verticalOffset = randomVerticalOffset();
+                const spacing = randomSpacing();
+                const y = currentBaseline - variant.height + verticalOffset;
+
+                characters.push({
+                    char: char,
+                    variant: variant, // Store the selected variant
+                    x: currentX,
+                    y: y,
+                    width: variant.width,
+                    height: variant.height,
+                    baseline: currentBaseline,
+                    verticalOffset: verticalOffset,
+                    spacing: spacing
+                });
+
+                currentX += variant.width + spacing;
+            }
+        }
+
+        function removeLastCharacter() {
+            if (characters.length === 0) return;
+
+            const removed = characters.pop();
+
+            // Recalculate position based on remaining characters
+            currentX = MARGIN_LEFT;
+            currentBaseline = MARGIN_TOP;
+            currentLineSpaceWidth = randomSpaceWidthForLine();
+
+            for (let i = 0; i < characters.length; i++) {
+                const c = characters[i];
+
+                if (c.char === '\n') {
+                    currentX = MARGIN_LEFT;
+                    currentBaseline += c.lineHeight;
+                    currentLineSpaceWidth = randomSpaceWidthForLine();
+                } else if (c.char === ' ') {
+                    currentX += c.width;
+                } else {
+                    currentX += c.width + c.spacing;
+                    currentBaseline = c.baseline;
+                }
+            }
+        }
+
+        function renderText() {
+            if (!textCtx) return;
+
+            // Clear canvas
+            textCtx.clearRect(0, 0, PAPER_WIDTH, PAPER_HEIGHT);
+
+            // Render all characters using their stored positions
+            for (let i = 0; i < characters.length; i++) {
+                const c = characters[i];
+
+                // Skip newlines and spaces (no visual)
+                if (c.char === '\n' || c.char === ' ') continue;
+
+                // Draw character at its stored position using its stored variant
+                if (c.variant && c.variant.image) {
+                    textCtx.drawImage(c.variant.image, c.x, c.y, c.width, c.height);
+                }
+            }
+
+            updateCursor();
+        }
+
+        function updateCursor() {
+            const cursor = document.getElementById('cursor');
+            cursor.style.left = currentX + 'px';
+            cursor.style.top = (currentBaseline - BASELINE_HEIGHT) + 'px';
+        }
+
+        function handleKeyPress(e) {
+            if (!editorReady) return;
+
+            if (e.key === 'Backspace') {
+                e.preventDefault();
+                removeLastCharacter();
+                renderText();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                addCharacter('\n');
+                renderText();
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                addCharacter(' ');
+                renderText();
+            } else if (e.key.length === 1) {
+                if (charDatabase[e.key] && charDatabase[e.key].loaded) {
+                    addCharacter(e.key);
+                    renderText();
+                }
+            }
+        }
+
+        document.getElementById('editorContainer').addEventListener('click', function() {
+            document.body.focus();
+        });
+
+        document.addEventListener('keydown', handleKeyPress);
+
+        loadImages();
+    </script>
+</body>
+</html>

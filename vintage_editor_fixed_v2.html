@@ -11,17 +11,24 @@
             box-sizing: border-box;
         }
 
+        html {
+            height: auto;
+            overflow: auto;
+        }
+
         body {
             font-family: Arial, sans-serif;
             background: #2a2a2a;
-            overflow: auto;
+            overflow: visible;
+            height: auto;
+            min-height: 0;
         }
 
         #editorWrapper {
             display: flex;
             justify-content: center;
-            padding: 20px;
-            min-height: 100vh;
+            padding: 60px 20px 60px 20px;
+            height: auto;
         }
 
         #editorContainer {
@@ -29,10 +36,13 @@
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             cursor: text;
             background: #000;
+            display: block;
         }
 
         #paperCanvas {
             display: block;
+            max-width: 100%;
+            height: auto;
         }
 
         #textCanvas {
@@ -83,7 +93,7 @@
         const BASELINE_HEIGHT = 60;
         const MARGIN_LEFT = 300;
         const MARGIN_RIGHT = 300;
-        const MARGIN_TOP = 400;
+        const MARGIN_TOP = 350;
         const MARGIN_BOTTOM = 400;
         const MAX_LINE_WIDTH = PAPER_WIDTH - MARGIN_RIGHT;
         const MAX_ALT_VARIANTS = 10;
@@ -98,12 +108,11 @@
 
         // Character-specific baseline offsets (positive = lower, negative = higher)
         const BASELINE_OFFSETS = {
-			'Q': 15,
             'g': 18,
             'p': 18,
             'j': 18,
             'y': 18,
-			'q': 18,
+            'q': 18,
             ',': 8,
             '.': 0,
             ':': 0,
@@ -124,13 +133,8 @@
         const charDatabase = {
             '0': { variants: [], rareVariants: [], loaded: false, baseFile: '0.png' },
             '1': { variants: [], rareVariants: [], loaded: false, baseFile: '1.png' },
-			'2': { variants: [], rareVariants: [], loaded: false, baseFile: '2.png' },
-			'3': { variants: [], rareVariants: [], loaded: false, baseFile: '3.png' },
-			'4': { variants: [], rareVariants: [], loaded: false, baseFile: '4.png' },
-			'5': { variants: [], rareVariants: [], loaded: false, baseFile: '5.png' },
-			'6': { variants: [], rareVariants: [], loaded: false, baseFile: '6.png' },
             '7': { variants: [], rareVariants: [], loaded: false, baseFile: '7.png' },
-			'8': { variants: [], rareVariants: [], loaded: false, baseFile: '8.png' },
+            '8': { variants: [], rareVariants: [], loaded: false, baseFile: '8.png' },
             '9': { variants: [], rareVariants: [], loaded: false, baseFile: '9.png' },
             'A': { variants: [], rareVariants: [], loaded: false, baseFile: 'A1.png' },
             'B': { variants: [], rareVariants: [], loaded: false, baseFile: 'B1.png' },
@@ -191,8 +195,6 @@
             '!': { variants: [], rareVariants: [], loaded: false, baseFile: 'exclamation.png' },
             '?': { variants: [], rareVariants: [], loaded: false, baseFile: 'question.png' },
             '-': { variants: [], rareVariants: [], loaded: false, baseFile: 'hyphen.png' },
-			'(': { variants: [], rareVariants: [], loaded: false, baseFile: 'openparenthesis.png' },
-			')': { variants: [], rareVariants: [], loaded: false, baseFile: 'closeparenthesis.png' },
             'openquote': { variants: [], rareVariants: [], loaded: false, baseFile: 'openquote.png' },
             'closequote': { variants: [], rareVariants: [], loaded: false, baseFile: 'closequote.png' },
             "'": { variants: [], rareVariants: [], loaded: false, baseFile: 'apostrophe.png' },

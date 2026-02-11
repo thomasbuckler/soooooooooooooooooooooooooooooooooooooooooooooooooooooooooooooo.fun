@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vintage Typography Editor</title>
     <style>
         * {
@@ -13,48 +13,49 @@
 
         body {
             font-family: Arial, sans-serif;
-            background: #2a2a2a;
-            overflow: auto;
+            background: #000;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            touch-action: none;
         }
 
         #editorWrapper {
             display: flex;
             justify-content: center;
-            padding: 20px;
-            min-height: 100vh;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
         }
 
         #editorContainer {
             position: relative;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             cursor: text;
             background: #000;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         #paperCanvas {
             display: block;
+            width: auto;
+            height: 100vh;
+            max-width: 100vw;
         }
 
         #textCanvas {
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             pointer-events: none;
         }
 
         #cursor {
-            position: absolute;
-            width: 2px;
-            height: 60px;
-            background: rgba(0,0,0,0.6);
-            animation: blink 1s infinite;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        @keyframes blink {
-            0%, 49% { opacity: 1; }
-            50%, 100% { opacity: 0; }
+            display: none;
         }
     </style>
 </head>
@@ -68,6 +69,19 @@
     </div>
 
     <script>
+        // Prevent zoom via keyboard and mouse
+        document.addEventListener('wheel', function(e) {
+            if (e.ctrlKey) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+                e.preventDefault();
+            }
+        });
+
         // EXACT DIMENSIONS WITH MARGINS
         const PAPER_WIDTH = 2172;
         const PAPER_HEIGHT = 3504;
@@ -83,11 +97,16 @@
         const BASELINE_HEIGHT = 60;
         const MARGIN_LEFT = 300;
         const MARGIN_RIGHT = 300;
-        const MARGIN_TOP = 400;
+        const MARGIN_TOP = 350;
         const MARGIN_BOTTOM = 400;
         const MAX_LINE_WIDTH = PAPER_WIDTH - MARGIN_RIGHT;
         const MAX_ALT_VARIANTS = 10;
         const RARE_VARIANT_CHANCE = 0.01;
+
+        // Scale factor for display
+        let displayScale = 1;
+        let canvasOffsetX = 0;
+        let canvasOffsetY = 0;
 
         // Ligature definitions - maps char pairs to ligature names
         const LIGATURES = {
@@ -98,12 +117,11 @@
 
         // Character-specific baseline offsets (positive = lower, negative = higher)
         const BASELINE_OFFSETS = {
-			'Q': 15,
             'g': 18,
             'p': 18,
             'j': 18,
             'y': 18,
-			'q': 18,
+            'q': 18,
             ',': 8,
             '.': 0,
             ':': 0,
@@ -114,7 +132,6 @@
             'openquote': -29,
             'closequote': -29,
             "'": -28,
-            // Ligatures (add as needed)
             'fi': 0,
             'fl': 0,
             'ff': 0
@@ -124,13 +141,8 @@
         const charDatabase = {
             '0': { variants: [], rareVariants: [], loaded: false, baseFile: '0.png' },
             '1': { variants: [], rareVariants: [], loaded: false, baseFile: '1.png' },
-			'2': { variants: [], rareVariants: [], loaded: false, baseFile: '2.png' },
-			'3': { variants: [], rareVariants: [], loaded: false, baseFile: '3.png' },
-			'4': { variants: [], rareVariants: [], loaded: false, baseFile: '4.png' },
-			'5': { variants: [], rareVariants: [], loaded: false, baseFile: '5.png' },
-			'6': { variants: [], rareVariants: [], loaded: false, baseFile: '6.png' },
             '7': { variants: [], rareVariants: [], loaded: false, baseFile: '7.png' },
-			'8': { variants: [], rareVariants: [], loaded: false, baseFile: '8.png' },
+            '8': { variants: [], rareVariants: [], loaded: false, baseFile: '8.png' },
             '9': { variants: [], rareVariants: [], loaded: false, baseFile: '9.png' },
             'A': { variants: [], rareVariants: [], loaded: false, baseFile: 'A1.png' },
             'B': { variants: [], rareVariants: [], loaded: false, baseFile: 'B1.png' },
@@ -191,12 +203,9 @@
             '!': { variants: [], rareVariants: [], loaded: false, baseFile: 'exclamation.png' },
             '?': { variants: [], rareVariants: [], loaded: false, baseFile: 'question.png' },
             '-': { variants: [], rareVariants: [], loaded: false, baseFile: 'hyphen.png' },
-			'(': { variants: [], rareVariants: [], loaded: false, baseFile: 'openparenthesis.png' },
-			')': { variants: [], rareVariants: [], loaded: false, baseFile: 'closeparenthesis.png' },
             'openquote': { variants: [], rareVariants: [], loaded: false, baseFile: 'openquote.png' },
             'closequote': { variants: [], rareVariants: [], loaded: false, baseFile: 'closequote.png' },
             "'": { variants: [], rareVariants: [], loaded: false, baseFile: 'apostrophe.png' },
-            // Ligatures
             'fi': { variants: [], rareVariants: [], loaded: false, baseFile: 'fi.png' },
             'fl': { variants: [], rareVariants: [], loaded: false, baseFile: 'fl.png' },
             'ff': { variants: [], rareVariants: [], loaded: false, baseFile: 'ff.png' },
@@ -269,14 +278,12 @@
             quoteIsOpen = openCount > closeCount;
         }
 
-        // Check if previous char + current char form a ligature
         function checkForLigature(char) {
             if (cursorIndex === 0) return null;
 
             const prevChar = characters[cursorIndex - 1];
             if (!prevChar || !prevChar.char) return null;
 
-            // Check if previous was a newline or space
             if (prevChar.char === '\n' || prevChar.char === ' ') return null;
 
             const combination = prevChar.char + char;
@@ -392,6 +399,19 @@
 
             paperCtx.drawImage(paperImage, 0, 0, PAPER_WIDTH, PAPER_HEIGHT);
 
+            // Calculate display scale and position
+            const displayHeight = paperCanvas.offsetHeight;
+            const displayWidth = paperCanvas.offsetWidth;
+            displayScale = displayHeight / PAPER_HEIGHT;
+
+            const rect = paperCanvas.getBoundingClientRect();
+            canvasOffsetX = rect.left;
+            canvasOffsetY = rect.top;
+
+            // Size text canvas to match display size
+            textCanvas.style.width = displayWidth + 'px';
+            textCanvas.style.height = displayHeight + 'px';
+
             updateCursorPosition();
         }
 
@@ -474,15 +494,12 @@
                 return;
             }
 
-            // Check for ligature BEFORE adding regular character
             const ligatureName = checkForLigature(char);
 
             if (ligatureName) {
-                // Replace previous character with ligature
                 const variant = randomVariant(ligatureName);
                 if (!variant) return;
 
-                // Remove the previous character
                 characters.splice(cursorIndex - 1, 1);
                 cursorIndex--;
 
@@ -523,7 +540,6 @@
                 return;
             }
 
-            // Regular character
             if (charDatabase[char] && charDatabase[char].loaded) {
                 const variant = randomVariant(char);
                 if (!variant) return;
@@ -752,9 +768,7 @@
         }
 
         function updateCursor() {
-            const cursor = document.getElementById('cursor');
-            cursor.style.left = currentX + 'px';
-            cursor.style.top = (currentBaseline - BASELINE_HEIGHT) + 'px';
+            // Cursor is now hidden, no need to update position
         }
 
         function handleKeyPress(e) {

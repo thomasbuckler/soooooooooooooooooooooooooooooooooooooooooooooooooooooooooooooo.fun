@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vintage Typography Editor - Exact Scale</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #2a2a2a;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: #1a1a1a;
+            padding: 15px;
+            color: #f0e6d2;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .info {
+            color: #999;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .controls button {
+            background: #555;
+            color: #f0e6d2;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .controls button:hover {
+            background: #666;
+        }
+
+        .controls button:active {
+            background: #777;
+        }
+
+        .stats {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #777;
+        }
+
+        #editorWrapper {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            min-height: calc(100vh - 150px);
+        }
+
+        #editorContainer {
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            cursor: text;
+            background: #000;
+        }
+
+        #paperCanvas {
+            display: block;
+        }
+
+        #textCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        #cursor {
+            position: absolute;
+            width: 2px;
+            height: 30px;
+            background: rgba(0,0,0,0.6);
+            animation: blink 1s infinite;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>The Little White Bird Typography Editor</h1>
+        <div class="info">
+            Type to add text • Enter for new line • Backspace to delete<br>
+            Random spacing (1-2px) • Random vertical offset (0-1px) • Baseline-aligned
+        </div>
+        <div class="controls">
+            <button onclick="clearText()">Clear Text</button>
+            <button onclick="zoomToFit()">Zoom to Fit</button>
+            <button onclick="zoomActual()">100% Size</button>
+        </div>
+        <div class="stats">
+            Characters typed: <span id="charCount">0</span> | 
+            Loaded chars: <span id="loadedCount">0</span> | 
+            Status: <span id="status">Loading...</span>
+        </div>
+    </div>
+
+    <div id="editorWrapper">
+        <div id="editorContainer">
+            <canvas id="paperCanvas"></canvas>
+            <canvas id="textCanvas"></canvas>
+            <div id="cursor"></div>
+        </div>
+    </div>
+
+    <script>
+        // EXACT DIMENSIONS WITH MARGINS
+        const PAPER_WIDTH = 2172;
+        const PAPER_HEIGHT = 3504;
+        const MIN_CHAR_SPACING = 1;
+        const MAX_CHAR_SPACING = 2;
+        const MIN_VERTICAL_OFFSET = 0;
+        const MAX_VERTICAL_OFFSET = 1;
+        const BASELINE_HEIGHT = 60;
+        const LINE_HEIGHT = 90;
+        const MARGIN_LEFT = 300;
+        const MARGIN_RIGHT = 300;
+        const MARGIN_TOP = 450;
+        const MARGIN_BOTTOM = 450;
+        const MAX_LINE_WIDTH = PAPER_WIDTH - MARGIN_RIGHT;
+
+        // Character database - auto-populated for full alphabet
+        const charDatabase = {};
+
+        // Define all characters we'll support
+        const upperCase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+        const lowerCase = 'abcdefghijklmnopqrstuvwxyz'.split('');
+        const numbers = '0123456789'.split('');
+        const punctuation = ['.', ',', '!', '?', ';', ':', '"', "'", '-', '(', ')', ' '];
+
+        // Initialize character database
+        function initCharDatabase() {
+            // Uppercase A-Z (A1.png, B1.png, etc.)
+            upperCase.forEach(char => {
+                charDatabase[char] = { 
+                    image: null, 
+                    width: null, 
+                    height: null, 
+                    loaded: false,
+                    filename: char + '1.png'
+                };
+            });
+
+            // Lowercase a-z (a2.png, b2.png, etc.)
+            lowerCase.forEach(char => {
+                charDatabase[char] = { 
+                    image: null, 
+                    width: null, 
+                    height: null, 
+                    loaded: false,
+                    filename: char + '2.png'
+                };
+            });
+
+            // Numbers 0-9 (01.png, 11.png, etc.)
+            numbers.forEach(char => {
+                charDatabase[char] = { 
+                    image: null, 
+                    width: null, 
+                    height: null, 
+                    loaded: false,
+                    filename: char + '1.png'
+                };
+            });
+
+            // Space character (special case)
+            charDatabase[' '] = {
+                image: null,
+                width: 20, // Default space width
+                height: 20,
+                loaded: true, // No image needed
+                filename: null
+            };
+
+            console.log('Character database initialized:', Object.keys(charDatabase).length, 'characters');
+        }
+
+        // Editor state
+        let text = '';
+        let cursorPos = { x: MARGIN_LEFT, y: MARGIN_TOP };
+
+        // Canvas references
+        let paperCanvas, textCanvas, paperCtx, textCtx;
+        let paperImage = new Image();
+        let editorReady = false;
+        let currentZoom = 1;
+
+        // Random helper functions
+        function randomSpacing() {
+            return MIN_CHAR_SPACING + Math.random() * (MAX_CHAR_SPACING - MIN_CHAR_SPACING);
+        }
+
+        function randomVerticalOffset() {
+            return MIN_VERTICAL_OFFSET + Math.random() * (MAX_VERTICAL_OFFSET - MIN_VERTICAL_OFFSET);
+        }
+
+        // Load images
+        function loadImages() {
+            initCharDatabase();
+
+            let loadedCount = 0;
+            let totalToLoad = 1; // Just paper for now
+
+            function checkAllLoaded() {
+                loadedCount++;
+                if (loadedCount === totalToLoad) {
+                    setupCanvases();
+                    editorReady = true;
+                    updateStatus('Ready to type!');
+                    updateLoadedCount();
+                    console.log('Editor ready!');
+                }
+            }
+
+            // Load paper background
+            paperImage.onload = function() {
+                console.log('Paper loaded:', paperImage.width, 'x', paperImage.height);
+                checkAllLoaded();
+            };
+            paperImage.onerror = () => {
+                updateStatus('Error loading blank.jpg');
+            };
+            paperImage.src = 'blank.jpg';
+
+            // Load available character images (currently just A and a)
+            loadCharacterImage('A');
+            loadCharacterImage('a');
+
+            // In future, load all characters:
+            // upperCase.forEach(char => loadCharacterImage(char));
+            // lowerCase.forEach(char => loadCharacterImage(char));
+        }
+
+        function loadCharacterImage(char) {
+            if (!charDatabase[char] || !charDatabase[char].filename) return;
+
+            const charData = charDatabase[char];
+            charData.image = new Image();
+
+            charData.image.onload = function() {
+                charData.loaded = true;
+                charData.width = this.naturalWidth;
+                charData.height = this.naturalHeight;
+                console.log('Loaded ' + char + ':', charData.width + 'x' + charData.height);
+                updateLoadedCount();
+            };
+
+            charData.image.onerror = () => {
+                console.log('Could not load ' + charData.filename + ' (this is OK if file doesn't exist yet)');
+            };
+
+            charData.image.src = charData.filename;
+        }
+
+        function updateLoadedCount() {
+            const loaded = Object.values(charDatabase).filter(c => c.loaded).length;
+            document.getElementById('loadedCount').textContent = loaded;
+        }
+
+        function setupCanvases() {
+            paperCanvas = document.getElementById('paperCanvas');
+            textCanvas = document.getElementById('textCanvas');
+
+            // Set exact dimensions
+            paperCanvas.width = PAPER_WIDTH;
+            paperCanvas.height = PAPER_HEIGHT;
+            textCanvas.width = PAPER_WIDTH;
+            textCanvas.height = PAPER_HEIGHT;
+
+            paperCtx = paperCanvas.getContext('2d');
+            textCtx = textCanvas.getContext('2d');
+
+            // Disable image smoothing for crisp pixels
+            textCtx.imageSmoothingEnabled = false;
+            paperCtx.imageSmoothingEnabled = false;
+
+            // Draw paper background at exact size
+            paperCtx.drawImage(paperImage, 0, 0, PAPER_WIDTH, PAPER_HEIGHT);
+
+            // Initial zoom to fit
+            zoomToFit();
+            updateCursor();
+        }
+
+        function renderText() {
+            if (!textCtx) return;
+
+            // Clear text canvas
+            textCtx.clearRect(0, 0, PAPER_WIDTH, PAPER_HEIGHT);
+
+            let x = MARGIN_LEFT;
+            let baseline = MARGIN_TOP;
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+
+                // Handle newline
+                if (char === '\n') {
+                    x = MARGIN_LEFT;
+                    baseline += LINE_HEIGHT;
+                    continue;
+                }
+
+                if (charDatabase[char] && charDatabase[char].loaded) {
+                    const charData = charDatabase[char];
+
+                    // Space character - just advance x
+                    if (char === ' ') {
+                        x += charData.width + randomSpacing();
+                        continue;
+                    }
+
+                    const img = charData.image;
+
+                    // Check if we need to wrap to next line
+                    if (x + charData.width > MAX_LINE_WIDTH) {
+                        x = MARGIN_LEFT;
+                        baseline += LINE_HEIGHT;
+                    }
+
+                    // Calculate Y position with random vertical offset (typewriter effect)
+                    const verticalJitter = randomVerticalOffset();
+                    const y = baseline - charData.height + verticalJitter;
+
+                    // Draw character at exact size, aligned by baseline
+                    textCtx.drawImage(img, x, y, charData.width, charData.height);
+
+                    // Move cursor position with random spacing
+                    const spacing = randomSpacing();
+                    x += charData.width + spacing;
+                } else {
+                    // Character not loaded yet - show placeholder
+                    x += 20;
+                }
+            }
+
+            // Update cursor position for next character
+            if (x + 60 > MAX_LINE_WIDTH) {
+                cursorPos.x = MARGIN_LEFT;
+                cursorPos.y = baseline + LINE_HEIGHT - BASELINE_HEIGHT;
+            } else {
+                cursorPos.x = x;
+                cursorPos.y = baseline - BASELINE_HEIGHT;
+            }
+
+            updateCursor();
+            document.getElementById('charCount').textContent = text.replace(/\n/g, '').length;
+        }
+
+        function updateCursor() {
+            const cursor = document.getElementById('cursor');
+            cursor.style.left = (cursorPos.x * currentZoom) + 'px';
+            cursor.style.top = (cursorPos.y * currentZoom) + 'px';
+            cursor.style.height = (BASELINE_HEIGHT * currentZoom) + 'px';
+        }
+
+        function updateStatus(msg) {
+            document.getElementById('status').textContent = msg;
+        }
+
+        function handleKeyPress(e) {
+            if (!editorReady) return;
+
+            if (e.key === 'Backspace') {
+                e.preventDefault();
+                if (text.length > 0) {
+                    text = text.slice(0, -1);
+                    renderText();
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                text += '\n';
+                renderText();
+            } else if (e.key.length === 1) {
+                // Accept any character that's in our database
+                if (charDatabase[e.key]) {
+                    text += e.key;
+                    renderText();
+                }
+            }
+        }
+
+        function clearText() {
+            text = '';
+            cursorPos.x = MARGIN_LEFT;
+            cursorPos.y = MARGIN_TOP - BASELINE_HEIGHT;
+            renderText();
+        }
+
+        function zoomToFit() {
+            const container = document.getElementById('editorContainer');
+            const windowWidth = window.innerWidth - 40;
+            const windowHeight = window.innerHeight - 200;
+
+            const scaleX = windowWidth / PAPER_WIDTH;
+            const scaleY = windowHeight / PAPER_HEIGHT;
+            currentZoom = Math.min(scaleX, scaleY, 1);
+
+            container.style.transform = `scale(${currentZoom})`;
+            container.style.transformOrigin = 'top center';
+            updateCursor();
+        }
+
+        function zoomActual() {
+            currentZoom = 1;
+            const container = document.getElementById('editorContainer');
+            container.style.transform = 'scale(1)';
+            container.style.transformOrigin = 'top center';
+            updateCursor();
+        }
+
+        // Focus handling
+        document.getElementById('editorContainer').addEventListener('click', function() {
+            document.body.focus();
+        });
+
+        // Keyboard input
+        document.addEventListener('keydown', handleKeyPress);
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            if (currentZoom !== 1) zoomToFit();
+        });
+
+        // Initialize
+        updateStatus('Loading images...');
+        loadImages();
+    </script>
+</body>
+</html>

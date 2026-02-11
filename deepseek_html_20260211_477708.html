@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vintage Typography Editor</title>
+    <title>Vintage Typography Editor + Export</title>
     <style>
         * {
             margin: 0;
@@ -67,7 +67,30 @@
         </div>
     </div>
 
+    <!-- ⭐ EXPORT BUTTON – appears below the editor -->
+    <div style="display: flex; justify-content: center; margin-top: 20px;">
+        <button id="exportBtn" style="
+            padding: 12px 24px;
+            font-size: 18px;
+            background: #3a3a3a;
+            color: white;
+            border: 2px solid #888;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            letter-spacing: 1px;
+            transition: all 0.2s ease;
+        " onmouseover="this.style.background='#4a4a4a'" onmouseout="this.style.background='#3a3a3a'">
+            ⬇️ Export as PNG
+        </button>
+    </div>
+
     <script>
+        // ============================================
+        //  VINTAGE TYPOGRAPHY EDITOR – FULL CODE
+        //  (with PNG export added)
+        // ============================================
+
         // EXACT DIMENSIONS WITH MARGINS
         const PAPER_WIDTH = 2172;
         const PAPER_HEIGHT = 3504;
@@ -98,12 +121,12 @@
 
         // Character-specific baseline offsets (positive = lower, negative = higher)
         const BASELINE_OFFSETS = {
-			'Q': 15,
+            'Q': 15,
             'g': 18,
             'p': 18,
             'j': 18,
             'y': 18,
-			'q': 18,
+            'q': 18,
             ',': 8,
             '.': 0,
             ':': 0,
@@ -124,13 +147,13 @@
         const charDatabase = {
             '0': { variants: [], rareVariants: [], loaded: false, baseFile: '0.png' },
             '1': { variants: [], rareVariants: [], loaded: false, baseFile: '1.png' },
-			'2': { variants: [], rareVariants: [], loaded: false, baseFile: '2.png' },
-			'3': { variants: [], rareVariants: [], loaded: false, baseFile: '3.png' },
-			'4': { variants: [], rareVariants: [], loaded: false, baseFile: '4.png' },
-			'5': { variants: [], rareVariants: [], loaded: false, baseFile: '5.png' },
-			'6': { variants: [], rareVariants: [], loaded: false, baseFile: '6.png' },
+            '2': { variants: [], rareVariants: [], loaded: false, baseFile: '2.png' },
+            '3': { variants: [], rareVariants: [], loaded: false, baseFile: '3.png' },
+            '4': { variants: [], rareVariants: [], loaded: false, baseFile: '4.png' },
+            '5': { variants: [], rareVariants: [], loaded: false, baseFile: '5.png' },
+            '6': { variants: [], rareVariants: [], loaded: false, baseFile: '6.png' },
             '7': { variants: [], rareVariants: [], loaded: false, baseFile: '7.png' },
-			'8': { variants: [], rareVariants: [], loaded: false, baseFile: '8.png' },
+            '8': { variants: [], rareVariants: [], loaded: false, baseFile: '8.png' },
             '9': { variants: [], rareVariants: [], loaded: false, baseFile: '9.png' },
             'A': { variants: [], rareVariants: [], loaded: false, baseFile: 'A1.png' },
             'B': { variants: [], rareVariants: [], loaded: false, baseFile: 'B1.png' },
@@ -191,8 +214,8 @@
             '!': { variants: [], rareVariants: [], loaded: false, baseFile: 'exclamation.png' },
             '?': { variants: [], rareVariants: [], loaded: false, baseFile: 'question.png' },
             '-': { variants: [], rareVariants: [], loaded: false, baseFile: 'hyphen.png' },
-			'(': { variants: [], rareVariants: [], loaded: false, baseFile: 'openparenthesis.png' },
-			')': { variants: [], rareVariants: [], loaded: false, baseFile: 'closeparenthesis.png' },
+            '(': { variants: [], rareVariants: [], loaded: false, baseFile: 'openparenthesis.png' },
+            ')': { variants: [], rareVariants: [], loaded: false, baseFile: 'closeparenthesis.png' },
             'openquote': { variants: [], rareVariants: [], loaded: false, baseFile: 'openquote.png' },
             'closequote': { variants: [], rareVariants: [], loaded: false, baseFile: 'closequote.png' },
             "'": { variants: [], rareVariants: [], loaded: false, baseFile: 'apostrophe.png' },
@@ -797,6 +820,45 @@
 
         document.addEventListener('keydown', handleKeyPress);
 
+        // ============================================
+        //  ⭐ NEW: EXPORT AS PNG FUNCTIONALITY
+        // ============================================
+        function exportAsImage() {
+            if (!editorReady) {
+                alert('Editor is still loading images – please wait a moment.');
+                return;
+            }
+
+            // Create a temporary canvas at the exact same dimensions
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = PAPER_WIDTH;
+            exportCanvas.height = PAPER_HEIGHT;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            // Keep the crisp pixel look (no anti-aliasing)
+            exportCtx.imageSmoothingEnabled = false;
+
+            // 1. Draw the paper background
+            exportCtx.drawImage(paperCanvas, 0, 0);
+
+            // 2. Draw the text layer on top
+            exportCtx.drawImage(textCanvas, 0, 0);
+
+            // 3. Trigger download as PNG
+            exportCanvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'vintage-typography.png'; // file name
+                link.click();
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        }
+
+        // Attach the export function to the button
+        document.getElementById('exportBtn').addEventListener('click', exportAsImage);
+
+        // Start loading all images
         loadImages();
     </script>
 </body>
