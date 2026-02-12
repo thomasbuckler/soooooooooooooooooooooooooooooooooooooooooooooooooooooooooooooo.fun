@@ -25,13 +25,12 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 0;
             overflow: hidden;
         }
 
         #editorContainer {
             position: relative;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             cursor: text;
             background: #000;
         }
@@ -63,16 +62,16 @@
 
         #saveButton {
             position: fixed;
-            bottom: 20px;
+            bottom: 5px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 15px 40px;
-            font-size: 16px;
+            padding: 8px 25px;
+            font-size: 14px;
             font-weight: bold;
             background: #4CAF50;
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             transition: all 0.3s ease;
@@ -95,6 +94,16 @@
             cursor: not-allowed;
             transform: translateX(-50%);
         }
+
+        /* Hidden input for mobile keyboard */
+        #hiddenInput {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
     </style>
 </head>
 <body>
@@ -105,7 +114,8 @@
             <div id="cursor"></div>
         </div>
     </div>
-    <button id="saveButton" onclick="saveAsImage()">💾 Save as Image</button>
+    <button id="saveButton" onclick="saveAsImage()">💾 Save</button>
+    <input type="text" id="hiddenInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
 
     <script>
         // EXACT DIMENSIONS WITH MARGINS
@@ -259,6 +269,7 @@
         let paperCanvas, textCanvas, paperCtx, textCtx;
         let paperImage = new Image();
         let editorReady = false;
+        let hiddenInput;
 
         function randomSpacing() {
             return MIN_CHAR_SPACING + Math.random() * (MAX_CHAR_SPACING - MIN_CHAR_SPACING);
@@ -427,21 +438,20 @@
         function setupCanvases() {
             paperCanvas = document.getElementById('paperCanvas');
             textCanvas = document.getElementById('textCanvas');
+            hiddenInput = document.getElementById('hiddenInput');
 
-            // Calculate scale to fit viewport height (with padding)
-            const availableHeight = window.innerHeight - 140; // Leave space for button and padding
+            // Calculate scale - use almost entire viewport height
+            const availableHeight = window.innerHeight - 50; // Just 50px for button
             displayScale = availableHeight / PAPER_HEIGHT;
 
             const displayWidth = Math.floor(PAPER_WIDTH * displayScale);
             const displayHeight = Math.floor(PAPER_HEIGHT * displayScale);
 
-            // Set canvas internal resolution to full size
             paperCanvas.width = PAPER_WIDTH;
             paperCanvas.height = PAPER_HEIGHT;
             textCanvas.width = PAPER_WIDTH;
             textCanvas.height = PAPER_HEIGHT;
 
-            // Set display size via CSS
             paperCanvas.style.width = displayWidth + 'px';
             paperCanvas.style.height = displayHeight + 'px';
             textCanvas.style.width = displayWidth + 'px';
@@ -461,10 +471,9 @@
             updateCursorPosition();
         }
 
-        // Recalculate on window resize
         window.addEventListener('resize', () => {
             if (editorReady) {
-                const availableHeight = window.innerHeight - 140;
+                const availableHeight = window.innerHeight - 50;
                 displayScale = availableHeight / PAPER_HEIGHT;
 
                 const displayWidth = Math.floor(PAPER_WIDTH * displayScale);
@@ -866,16 +875,27 @@
                     URL.revokeObjectURL(url);
 
                     button.disabled = false;
-                    button.textContent = '💾 Save as Image';
+                    button.textContent = '💾 Save';
                     console.log('✅ Image saved successfully!');
                 }, 'image/jpeg', 0.5);
             } catch (error) {
                 console.error('Error saving image:', error);
                 alert('Error saving image. Please check the console for details.');
                 button.disabled = false;
-                button.textContent = '💾 Save as Image';
+                button.textContent = '💾 Save';
             }
         }
+
+        // Handle input from hidden field (for mobile keyboard)
+        hiddenInput = document.getElementById('hiddenInput');
+
+        hiddenInput.addEventListener('input', (e) => {
+            const char = e.target.value;
+            if (char && editorReady) {
+                addCharacter(char);
+            }
+            e.target.value = ''; // Clear input
+        });
 
         function handleKeyPress(e) {
             if (!editorReady) return;
@@ -911,8 +931,9 @@
             }
         }
 
+        // Focus hidden input when canvas is clicked (triggers mobile keyboard)
         document.getElementById('editorContainer').addEventListener('click', function() {
-            document.body.focus();
+            hiddenInput.focus();
         });
 
         document.addEventListener('keydown', handleKeyPress);
