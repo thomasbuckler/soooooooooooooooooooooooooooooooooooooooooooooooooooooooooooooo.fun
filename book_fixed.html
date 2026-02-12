@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>book</title>
     <style>
         * {
@@ -14,15 +14,19 @@
         body {
             font-family: Arial, sans-serif;
             background: #2a2a2a;
-            overflow: auto;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         #editorWrapper {
+            flex: 1;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
             padding: 20px;
-            min-height: 100vh;
+            overflow: hidden;
         }
 
         #editorContainer {
@@ -30,7 +34,6 @@
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             cursor: text;
             background: #000;
-            margin-bottom: 30px;
         }
 
         #paperCanvas {
@@ -47,7 +50,6 @@
         #cursor {
             position: absolute;
             width: 2px;
-            height: 60px;
             background: rgba(0,0,0,0.6);
             animation: blink 1s infinite;
             pointer-events: none;
@@ -60,6 +62,10 @@
         }
 
         #saveButton {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             padding: 15px 40px;
             font-size: 16px;
             font-weight: bold;
@@ -70,24 +76,24 @@
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             transition: all 0.3s ease;
-            margin-bottom: 40px;
+            z-index: 1000;
         }
 
         #saveButton:hover {
             background: #45a049;
-            transform: translateY(-2px);
+            transform: translateX(-50%) translateY(-2px);
             box-shadow: 0 6px 20px rgba(0,0,0,0.4);
         }
 
         #saveButton:active {
-            transform: translateY(0);
+            transform: translateX(-50%) translateY(0);
             box-shadow: 0 3px 10px rgba(0,0,0,0.3);
         }
 
         #saveButton:disabled {
             background: #666;
             cursor: not-allowed;
-            transform: none;
+            transform: translateX(-50%);
         }
     </style>
 </head>
@@ -98,8 +104,8 @@
             <canvas id="textCanvas"></canvas>
             <div id="cursor"></div>
         </div>
-        <button id="saveButton" onclick="saveAsImage()">💾 Save as Image</button>
     </div>
+    <button id="saveButton" onclick="saveAsImage()">💾 Save as Image</button>
 
     <script>
         // EXACT DIMENSIONS WITH MARGINS
@@ -123,17 +129,20 @@
         const MAX_ALT_VARIANTS = 10;
         const RARE_VARIANT_CHANCE = 0.01;
 
-        // Ligature definitions - maps char pairs to ligature names
+        // Display scale for fitting to viewport
+        let displayScale = 1;
+
+        // Ligature definitions
         const LIGATURES = {
             'fi': 'fi',
             'fl': 'fl',
             'ff': 'ff'
         };
 
-        // Character-specific baseline offsets (positive = lower, negative = higher)
+        // Character-specific baseline offsets
         const BASELINE_OFFSETS = {
-            '(': 9,
-            ')': 9,
+            '(': 15,
+            ')': 15,
             'Q': 15,
             'g': 18,
             'p': 18,
@@ -150,13 +159,12 @@
             'openquote': -29,
             'closequote': -29,
             "'": -28,
-            // Ligatures (add as needed)
             'fi': 0,
             'fl': 0,
             'ff': 0
         };
 
-        // Character database with punctuation, quotes, and ligatures
+        // Character database
         const charDatabase = {
             '0': { variants: [], rareVariants: [], loaded: false, baseFile: '0.png' },
             '1': { variants: [], rareVariants: [], loaded: false, baseFile: '1.png' },
@@ -232,7 +240,6 @@
             'openquote': { variants: [], rareVariants: [], loaded: false, baseFile: 'openquote.png' },
             'closequote': { variants: [], rareVariants: [], loaded: false, baseFile: 'closequote.png' },
             "'": { variants: [], rareVariants: [], loaded: false, baseFile: 'apostrophe.png' },
-            // Ligatures
             'fi': { variants: [], rareVariants: [], loaded: false, baseFile: 'fi.png' },
             'fl': { variants: [], rareVariants: [], loaded: false, baseFile: 'fl.png' },
             'ff': { variants: [], rareVariants: [], loaded: false, baseFile: 'ff.png' },
@@ -305,14 +312,12 @@
             quoteIsOpen = openCount > closeCount;
         }
 
-        // Check if previous char + current char form a ligature
         function checkForLigature(char) {
             if (cursorIndex === 0) return null;
 
             const prevChar = characters[cursorIndex - 1];
             if (!prevChar || !prevChar.char) return null;
 
-            // Check if previous was a newline or space
             if (prevChar.char === '\n' || prevChar.char === ' ') return null;
 
             const combination = prevChar.char + char;
@@ -394,7 +399,6 @@
             });
         }
 
-        // RANDOMLY SELECT ONE OF 5 PAPER BACKGROUNDS
         function getRandomPaperBackground() {
             const randomNum = Math.floor(Math.random() * 5) + 1;
             return 'blank' + randomNum + '.jpg';
@@ -424,10 +428,24 @@
             paperCanvas = document.getElementById('paperCanvas');
             textCanvas = document.getElementById('textCanvas');
 
+            // Calculate scale to fit viewport height (with padding)
+            const availableHeight = window.innerHeight - 140; // Leave space for button and padding
+            displayScale = availableHeight / PAPER_HEIGHT;
+
+            const displayWidth = Math.floor(PAPER_WIDTH * displayScale);
+            const displayHeight = Math.floor(PAPER_HEIGHT * displayScale);
+
+            // Set canvas internal resolution to full size
             paperCanvas.width = PAPER_WIDTH;
             paperCanvas.height = PAPER_HEIGHT;
             textCanvas.width = PAPER_WIDTH;
             textCanvas.height = PAPER_HEIGHT;
+
+            // Set display size via CSS
+            paperCanvas.style.width = displayWidth + 'px';
+            paperCanvas.style.height = displayHeight + 'px';
+            textCanvas.style.width = displayWidth + 'px';
+            textCanvas.style.height = displayHeight + 'px';
 
             paperCtx = paperCanvas.getContext('2d');
             textCtx = textCanvas.getContext('2d');
@@ -437,8 +455,29 @@
 
             paperCtx.drawImage(paperImage, 0, 0, PAPER_WIDTH, PAPER_HEIGHT);
 
+            console.log('Display scale:', displayScale);
+            console.log('Display size:', displayWidth + 'x' + displayHeight);
+
             updateCursorPosition();
         }
+
+        // Recalculate on window resize
+        window.addEventListener('resize', () => {
+            if (editorReady) {
+                const availableHeight = window.innerHeight - 140;
+                displayScale = availableHeight / PAPER_HEIGHT;
+
+                const displayWidth = Math.floor(PAPER_WIDTH * displayScale);
+                const displayHeight = Math.floor(PAPER_HEIGHT * displayScale);
+
+                paperCanvas.style.width = displayWidth + 'px';
+                paperCanvas.style.height = displayHeight + 'px';
+                textCanvas.style.width = displayWidth + 'px';
+                textCanvas.style.height = displayHeight + 'px';
+
+                updateCursorPosition();
+            }
+        });
 
         function checkNeedWrap(x, width) {
             return x + width > MAX_LINE_WIDTH;
@@ -519,15 +558,12 @@
                 return;
             }
 
-            // Check for ligature BEFORE adding regular character
             const ligatureName = checkForLigature(char);
 
             if (ligatureName) {
-                // Replace previous character with ligature
                 const variant = randomVariant(ligatureName);
                 if (!variant) return;
 
-                // Remove the previous character
                 characters.splice(cursorIndex - 1, 1);
                 cursorIndex--;
 
@@ -568,7 +604,6 @@
                 return;
             }
 
-            // Regular character
             if (charDatabase[char] && charDatabase[char].loaded) {
                 const variant = randomVariant(char);
                 if (!variant) return;
@@ -798,30 +833,29 @@
 
         function updateCursor() {
             const cursor = document.getElementById('cursor');
-            cursor.style.left = currentX + 'px';
-            cursor.style.top = (currentBaseline - BASELINE_HEIGHT) + 'px';
+            const scaledX = currentX * displayScale;
+            const scaledY = (currentBaseline - BASELINE_HEIGHT) * displayScale;
+            const scaledHeight = BASELINE_HEIGHT * displayScale;
+
+            cursor.style.left = scaledX + 'px';
+            cursor.style.top = scaledY + 'px';
+            cursor.style.height = scaledHeight + 'px';
         }
 
-        // SAVE AS JPG WITH 50% QUALITY
         function saveAsImage() {
             const button = document.getElementById('saveButton');
             button.disabled = true;
             button.textContent = '⏳ Saving...';
 
             try {
-                // Create a temporary canvas to merge paper and text
                 const mergedCanvas = document.createElement('canvas');
                 mergedCanvas.width = PAPER_WIDTH;
                 mergedCanvas.height = PAPER_HEIGHT;
                 const mergedCtx = mergedCanvas.getContext('2d');
 
-                // Draw paper background
                 mergedCtx.drawImage(paperCanvas, 0, 0);
-
-                // Draw text on top
                 mergedCtx.drawImage(textCanvas, 0, 0);
 
-                // Convert to JPG with 50% quality (0.5)
                 mergedCanvas.toBlob((blob) => {
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
