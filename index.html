@@ -397,7 +397,7 @@
 
         // RANDOMLY SELECT ONE OF 5 PAPER BACKGROUNDS
         function getRandomPaperBackground() {
-            const randomNum = Math.floor(Math.random() * 6) + 1;
+            const randomNum = Math.floor(Math.random() * 8) + 1;
             return 'blank' + randomNum + '.jpg';
         }
 
@@ -835,7 +835,7 @@
                     button.disabled = false;
                     button.textContent = '💾 Save as Image';
                     console.log('✅ Image saved successfully!');
-                }, 'image/jpeg', 0.5);
+                }, 'image/jpeg', 1.0);
             } catch (error) {
                 console.error('Error saving image:', error);
                 alert('Error saving image. Please check the console for details.');
